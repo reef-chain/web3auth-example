@@ -12,12 +12,14 @@ body {
     font-size: 2rem;
 }
 
-button {
+.App > button {
     background-color: #a93185;
     color: white;
     border: white solid 1px;
     border-radius: 8px;
+    display: block;
     padding: 10px 20px;
+    margin: 10px auto;
     font-size: 1rem;
     cursor: pointer;
     transition: background-color 0.3s ease;
@@ -27,6 +29,11 @@ button:hover {
     background-color: #a931859b;
 }
 
+.loading {
+    font-size: 1.2rem;
+    margin: 86px 0;
+}
+
 .account {
     display: flex;
     color: black;
@@ -34,7 +41,7 @@ button:hover {
     border-radius: 8px;
     padding: 16px;
     margin: 16px;
-    max-width: 400px;
+    max-width: 450px;
     margin: 40px auto;
 }
 

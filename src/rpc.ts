@@ -1,9 +1,16 @@
 import type { SafeEventEmitterProvider } from "@web3auth/base";
+import {
+  TestAccountSigningKey,
+  Provider,
+  Signer,
+} from "@reef-defi/evm-provider";
 import { cryptoWaitReady } from "@polkadot/util-crypto";
-import { WsProvider, Keyring, ApiPromise } from "@polkadot/api";
+import { WsProvider, Keyring } from "@polkadot/api";
+import { stringToU8a, u8aToHex } from '@polkadot/util';
 import { Provider as ReefEvmProvider } from "@reef-defi/evm-provider";
 import { RPC_URL } from "./config";
-import { options } from '@reef-defi/api';
+import { getAddress } from "ethers";
+import { ReefAccount, computeDefaultEvmAddress } from "./util";
 
 export default class ReefRpc {
   private web3authProvider: SafeEventEmitterProvider;
@@ -14,17 +21,9 @@ export default class ReefRpc {
 
   getProviderApi = async (): Promise<any> => {
     try {
-      const wsProvider = new WsProvider(RPC_URL);
-
-      const provider = new ReefEvmProvider({provider: wsProvider});
+      const provider = new ReefEvmProvider({provider: new WsProvider(RPC_URL)});
       await provider.api.isReady;
       return provider.api;
-
-      const opt = options({ provider: wsProvider });
-      console.log(opt);
-      const api = new ApiPromise(options({ provider: wsProvider }));
-      await api.isReadyOrError;
-      return api;
     } catch (e) {
       console.log("Provider API error:", e);
       return null;
@@ -41,31 +40,71 @@ export default class ReefRpc {
     return keyPair;
   };
 
-  getAccounts = async (): Promise<any> => {
+  getAddress = async (): Promise<any> => {
     const keyPair = await this.getKeyPair();
     return keyPair.address;
   }
 
-  getBalance = async (): Promise<string> => {
+  getSigner = async (): Promise<Signer> => {
     const keyPair = await this.getKeyPair();
     const api = await this.getProviderApi();
-    const data = await api.query.system.account(keyPair.address);
-    console.log(data.toHuman());
-    return data.data.free.toString();
+    const signingKey = new TestAccountSigningKey(api.registry);
+    signingKey.addKeyringPair(keyPair);
+    return new Signer(api.provider, keyPair.address, signingKey);
   }
+
+  getBalance = async (): Promise<BigInt> => {
+    const address = await this.getAddress();
+    const api = await this.getProviderApi();
+    const data = await api.query.system.account(address);
+    return BigInt(data.data.free.toString(10));
+  }
+
+  queryEvmAddress = async (): Promise<{ evmAddress: string, isEvmClaimed: boolean }> => {
+    const address = await this.getAddress();
+    const api = await this.getProviderApi();
+    const claimedAddress = await api.query.evmAccounts.evmAddresses(address);
+    if (!claimedAddress.isEmpty) {
+      const evmAddress = getAddress(claimedAddress.toString());
+      return { evmAddress, isEvmClaimed: true };
+    }
+    return { evmAddress: computeDefaultEvmAddress(address), isEvmClaimed: false };
+  }
+
+  getReefAccount = async (name: string): Promise<ReefAccount> => {
+    const address = await this.getAddress();
+    const balance = await this.getBalance();
+    const { evmAddress, isEvmClaimed } = await this.queryEvmAddress();
+    const signer = await this.getSigner();
+  
+    return {
+      name,
+      balance,
+      address,
+      evmAddress,
+      isEvmClaimed,
+      signer,
+    };
+  };
+
+  claimEvmAccount = async (): Promise<any> => {
+
+  };
 
   signAndSendTransaction = async (): Promise<any> => {
     const keyPair = await this.getKeyPair();
     const api = await this.getProviderApi();
-    // const txHash = await api.tx.balances
-    //   .transfer("5Gzhnn1MsDUjMi7S4cN41CfggEVzSyM58LkTYPFJY3wt7o3d", 12345)
-    //   .signAndSend(keyPair);
-    // console.log(txHash);
-    // return txHash.toHuman();
+    const txHash = await api.tx.balances
+      .transfer("5EnY9eFwEDcEJ62dJWrTXhTucJ4pzGym4WZ2xcDKiT3eJecP", 1000)
+      .signAndSend(keyPair);
+    return txHash.toHuman();
   };
 
   signMessage = async () => {
-
+    const keyPair = await this.getKeyPair();
+    const message = stringToU8a('Hello World');
+    const signature = keyPair.sign(message);
+    return u8aToHex(signature);
   }
 
 }

@@ -14,7 +14,7 @@ const Account = ({ account, onClick }: Account): JSX.Element => (
     <div className="content">
       <div className="name">{ account.name }</div>
       <div>Native address: { toAddressShortDisplay(account.address) }</div>
-      <div>EVM address: { toAddressShortDisplay(account.evmAddress) }</div>
+      <div>EVM address: { toAddressShortDisplay(account.evmAddress) } ({ account.isEvmClaimed ? "✅ Claimed" : "❌ Not Claimed" })</div>
       <div>Balance: { toReefAmount(account.balance) }</div>
     </div>
   </div>
