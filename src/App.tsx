@@ -1,26 +1,29 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Account from './Account';
 import { Web3Auth } from "@web3auth/modal";
 import { CHAIN_NAMESPACES, SafeEventEmitterProvider } from "@web3auth/base";
 import { OpenloginAdapter } from "@web3auth/openlogin-adapter";
 import RPC from "./rpc";
 import { CLIENT_ID, REEF_NETWORK, RPC_URL, WEB3_AUTH_NETWORK } from './config';
-
-interface Status {
-  inProgress: boolean;
-  message?: string;
-}
+import { ReefAccount } from './util';
 
 const App = (): JSX.Element => {
   const [web3auth, setWeb3auth] = useState<Web3Auth | null>(null);
   const [web3authProvider, setWeb3authProvider] = useState<SafeEventEmitterProvider | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [reefAccount, setReefAccount] = useState<ReefAccount | null>(null);
+  const [reefAccountLoading, setReefAccountLoading] = useState(false);
 
   useEffect(() => {
     initWeb3Auth();
   }, []);
 
-  // Initialize Web3Auth
+  useEffect(() => {
+    if (web3auth && web3authProvider && loggedIn && !reefAccount) {
+      getReefAccount();
+    }
+  }, [web3auth, web3authProvider, loggedIn]);
+
   const initWeb3Auth = async () => {
     try {
       const web3auth = new Web3Auth({
@@ -65,6 +68,26 @@ const App = (): JSX.Element => {
     setLoggedIn(true);
   };
 
+  const getReefAccount = async () => {
+    setReefAccountLoading(true);
+    const user = await web3auth!.getUserInfo();
+    const rpc = new RPC(web3authProvider!);
+    const reefAccount = await rpc.getReefAccount(user.name || '');
+    setReefAccount(reefAccount);
+    setReefAccountLoading(false);
+  }
+
+  const logout = async () => {
+    if (!web3auth) {
+      alert("web3auth not initialized yet");
+      return;
+    }
+    await web3auth.logout();
+    setWeb3authProvider(null);
+    setLoggedIn(false);
+    setReefAccount(null);
+  };
+
   const authenticateUser = async () => {
     if (!web3auth) {
       alert("web3auth not initialized yet");
@@ -72,6 +95,7 @@ const App = (): JSX.Element => {
     }
     const idToken = await web3auth.authenticateUser();
     console.log(idToken);
+    alert("ID Token: " + idToken.idToken);
   };
 
   const getUserInfo = async () => {
@@ -81,37 +105,7 @@ const App = (): JSX.Element => {
     }
     const user = await web3auth.getUserInfo();
     console.log(user);
-  };
-
-  const logout = async () => {
-    setWeb3authProvider(null);
-    if (!web3auth) {
-      alert("web3auth not initialized yet");
-      return;
-    }
-    await web3auth.logout();
-    setWeb3authProvider(null);
-    setLoggedIn(false);
-  };
-
-  const getAccounts = async () => {
-    if (!web3authProvider) {
-      alert("provider not initialized yet");
-      return;
-    }
-    const rpc = new RPC(web3authProvider);
-    const address = await rpc.getAccounts();
-    console.log(address);
-  };
-
-  const getBalance = async () => {
-    if (!web3authProvider) {
-      alert("provider not initialized yet");
-      return;
-    }
-    const rpc = new RPC(web3authProvider);
-    const balance = await rpc.getBalance();
-    console.log(balance);
+    alert("User Info: " + JSON.stringify(user));
   };
 
   const signAndSendTransaction = async () => {
@@ -120,8 +114,8 @@ const App = (): JSX.Element => {
       return;
     }
     const rpc = new RPC(web3authProvider);
-    const receipt = await rpc.signAndSendTransaction();
-    console.log(receipt);
+    const txHash = await rpc.signAndSendTransaction();
+    alert("Transaction Hash: " + txHash);
   };
 
   const signMessage = async () => {
@@ -130,25 +124,38 @@ const App = (): JSX.Element => {
       return;
     }
     const rpc = new RPC(web3authProvider);
-    const signedMessage = await rpc.signMessage();
-    console.log(signedMessage);
+    const signature = await rpc.signMessage();
+    alert("Signature: " + signature);
+  };
+
+  const claimEvmAccount = async () => {
+    if (!web3authProvider) {
+      alert("provider not initialized yet");
+      return;
+    }
+    const rpc = new RPC(web3authProvider);
+    const txHash = await rpc.claimEvmAccount();
+    alert("Transaction Hash: " + txHash);
   };
 
   return (
     <div className="App">
       <h1>Reef Chain dApp</h1>
-      { web3auth && !web3authProvider &&
+      { web3auth && !loggedIn &&
         <button onClick={login}>Login</button>
       }
-      { web3authProvider &&
+      { loggedIn &&
         <>
-          <button onClick={getUserInfo}>Get User Info</button> <br />
-          <button onClick={authenticateUser}>Get ID Token</button> <br />
-          <button onClick={getAccounts}>Get Accounts</button> <br />
-          <button onClick={getBalance}>Get Balance</button> <br />
-          <button onClick={signAndSendTransaction}>Sign and Send Transaction</button> <br />
-          <button onClick={signMessage}>Sign Message</button> <br />
-          <button onClick={logout}>Logout</button> <br />
+          { reefAccountLoading && !reefAccount && <div className='loading'>Loading account...</div> }
+          { reefAccount && <Account account={reefAccount} /> }
+          <button onClick={getUserInfo}>Get User Info</button>
+          <button onClick={authenticateUser}>Get ID Token</button>
+          <button onClick={signAndSendTransaction}>Sign and Send Transaction</button>
+          <button onClick={signMessage}>Sign Message</button>
+          { reefAccount && !reefAccount.isEvmClaimed &&
+            <button onClick={claimEvmAccount}>Claim EVM account</button>
+          }
+          <button onClick={logout}>Logout</button>
         </>
       }
     </div>
