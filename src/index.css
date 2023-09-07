@@ -41,7 +41,7 @@ button:hover {
     border-radius: 8px;
     padding: 16px;
     margin: 16px;
-    max-width: 450px;
+    max-width: 650px;
     margin: 40px auto;
 }
 
@@ -55,14 +55,14 @@ button:hover {
     font-weight: bold;
 }
   
-.logo {
+.avatar {
     flex: 0 0 auto;
     margin-right: 16px;
     display: flex;
     align-items: center;
 }
   
-.logo img {
+.avatar img {
     max-width: 50px;
     max-height: 50px;
 }

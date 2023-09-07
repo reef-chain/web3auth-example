@@ -4,14 +4,15 @@
   "private": true,
   "dependencies": {
     "@polkadot/react-identicon": "^3.4.2",
-    "@reef-defi/evm-provider": "^1.0.11",
+    "@reef-chain/evm-provider": "^1.0.12",
+    "@reef-defi/util": "^7.8.2",
     "@types/node": "^16.7.13",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "@walletconnect/sign-client": "^2.10.0",
     "@web3auth/modal": "^6.1.7",
     "crypto-browserify": "^3.12.0",
-    "ethers": "^6.4.1",
+    "ethers": "^5.5.0",
     "npm": "^9.8.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -35,7 +36,6 @@
   "scripts": {
     "start": "webpack-dev-server",
     "build": "webpack --mode production",
-    "test": "react-scripts test",
     "eject": "react-scripts eject"
   }
 }
