@@ -2,15 +2,18 @@ import type { SafeEventEmitterProvider } from "@web3auth/base";
 import {
   TestAccountSigningKey,
   Signer,
-  Provider as ReefEvmProvider
+  Provider as ReefEvmProvider,
 } from "@reef-chain/evm-provider";
-import { buildPayload, sendSignedTransaction } from "@reef-chain/evm-provider/build/utils";
+import {
+  buildPayload,
+  sendSignedTransaction,
+} from "@reef-chain/evm-provider/utils";
 import { cryptoWaitReady } from "@polkadot/util-crypto";
-import { KeyringPair } from '@polkadot/keyring/types';
+import { KeyringPair } from "@polkadot/keyring/types";
 import { WsProvider, Keyring } from "@polkadot/api";
-import { stringToU8a, u8aToHex } from '@polkadot/util';
-import {TypeRegistry} from '@polkadot/types';
-import type { SignerPayloadJSON } from '@polkadot/types/types';
+import { stringToU8a, u8aToHex } from "@polkadot/util";
+import { TypeRegistry } from "@polkadot/types";
+import type { SignerPayloadJSON } from "@polkadot/types/types";
 import { Contract, ethers, PopulatedTransaction } from "ethers";
 import { RPC_URL } from "./config";
 import { ReefAccount, computeDefaultEvmAddress } from "./util";
@@ -25,7 +28,9 @@ export default class ReefRpc {
 
   getProvider = async (): Promise<ReefEvmProvider> => {
     try {
-      const provider = new ReefEvmProvider({provider: new WsProvider(RPC_URL)});
+      const provider = new ReefEvmProvider({
+        provider: new WsProvider(RPC_URL),
+      });
       await provider.api.isReady;
       return provider;
     } catch (e) {
@@ -47,7 +52,7 @@ export default class ReefRpc {
   getNativeAddress = async (): Promise<string> => {
     const keyPair = await this.getKeyPair();
     return keyPair.address;
-  }
+  };
 
   getSigner = async (): Promise<Signer> => {
     const keyPair = await this.getKeyPair();
@@ -56,7 +61,7 @@ export default class ReefRpc {
     const signingKey = new TestAccountSigningKey(provider.api.registry);
     signingKey.addKeyringPair(keyPair);
     return new Signer(provider, keyPair.address, signingKey);
-  }
+  };
 
   getBalance = async (): Promise<bigint> => {
     const address = await this.getNativeAddress();
@@ -64,25 +69,33 @@ export default class ReefRpc {
 
     const data = await provider.api.query.system.account(address);
     return BigInt(data.data.free.toString(10));
-  }
+  };
 
-  queryEvmAddress = async (): Promise<{ evmAddress: string, isEvmClaimed: boolean }> => {
+  queryEvmAddress = async (): Promise<{
+    evmAddress: string;
+    isEvmClaimed: boolean;
+  }> => {
     const address = await this.getNativeAddress();
     const provider = await this.getProvider();
 
-    const claimedAddress = await provider.api.query.evmAccounts.evmAddresses(address);
+    const claimedAddress = await provider.api.query.evmAccounts.evmAddresses(
+      address
+    );
     if (!claimedAddress.isEmpty) {
       const evmAddress = ethers.utils.getAddress(claimedAddress.toString());
       return { evmAddress, isEvmClaimed: true };
     }
-    return { evmAddress: computeDefaultEvmAddress(address), isEvmClaimed: false };
-  }
+    return {
+      evmAddress: computeDefaultEvmAddress(address),
+      isEvmClaimed: false,
+    };
+  };
 
   getReefAccount = async (name: string): Promise<ReefAccount> => {
     const balance = await this.getBalance();
     const address = await this.getNativeAddress();
     const { evmAddress, isEvmClaimed } = await this.queryEvmAddress();
-    
+
     return {
       name,
       balance,
@@ -96,21 +109,27 @@ export default class ReefRpc {
     const keyPair = await this.getKeyPair();
     const provider = await this.getProvider();
 
-    await provider.api.tx.evmAccounts.claimDefaultAccount()
-      .signAndSend(keyPair, (status: any) => { cb(status); });
+    await provider.api.tx.evmAccounts
+      .claimDefaultAccount()
+      .signAndSend(keyPair, (status: any) => {
+        cb(status);
+      });
   };
 
   claimEvmAccount = async (
-    evmAddress: string, 
+    evmAddress: string,
     signature: string,
     cb: (status: any) => void
   ): Promise<any> => {
     const keyPair = await this.getKeyPair();
     const provider = await this.getProvider();
 
-    await provider.api.tx.evmAccounts.claimAccount(evmAddress, signature)
-      .signAndSend(keyPair, (status: any) => { cb(status); });
-  }
+    await provider.api.tx.evmAccounts
+      .claimAccount(evmAddress, signature)
+      .signAndSend(keyPair, (status: any) => {
+        cb(status);
+      });
+  };
 
   nativeTransfer = async (recipient: string, amount: number): Promise<any> => {
     const keyPair = await this.getKeyPair();
@@ -128,7 +147,7 @@ export default class ReefRpc {
 
     const signature = keyPair.sign(message);
     return u8aToHex(signature);
-  }
+  };
 
   signPayload = async (payload: SignerPayloadJSON): Promise<string> => {
     const keyPair = await this.getKeyPair();
@@ -136,10 +155,9 @@ export default class ReefRpc {
     registry.setSignedExtensions(payload.signedExtensions);
 
     return registry
-      .createType('ExtrinsicPayload', payload, {version: payload.version})
-      .sign(keyPair)
-      .signature;
-  }
+      .createType("ExtrinsicPayload", payload, { version: payload.version })
+      .sign(keyPair).signature;
+  };
 
   evmTransaction = async (): Promise<any> => {
     const flipperContractAddress = "0x3bb302b1f0dCaFFB87017A7E7816cdB8C5ec710D";
@@ -154,7 +172,11 @@ export default class ReefRpc {
 
     const tx: PopulatedTransaction = await contract.populateTransaction.flip();
 
-    const { payload, extrinsic } = await buildPayload(provider, signerAddress, tx);
+    const { payload, extrinsic } = await buildPayload(
+      provider,
+      signerAddress,
+      tx
+    );
     const signature = await this.signPayload(payload);
     extrinsic.addSignature(signerAddress, signature, payload);
 
@@ -168,16 +190,20 @@ export default class ReefRpc {
     );
 
     return txResult;
-  }
+  };
 
-  subscribeToBalance = async (cb: (freeBalance: bigint, address: string) => void): Promise<any> => {
+  subscribeToBalance = async (
+    cb: (freeBalance: bigint, address: string) => void
+  ): Promise<any> => {
     const address = await this.getNativeAddress();
     const provider = await this.getProvider();
 
-    const unsub = await provider.api.query.system.account(address, ({ data: balance }) => {
-      cb(BigInt(balance.free.toString()), address);
-    });
+    const unsub = await provider.api.query.system.account(
+      address,
+      ({ data: balance }) => {
+        cb(BigInt(balance.free.toString()), address);
+      }
+    );
     return unsub;
-  }
-
+  };
 }
